@@ -70,3 +70,27 @@ def test_job_gpu_count_accepts_gres_gpu_format(monkeypatch, capsys):
     output = capsys.readouterr().out
     assert "gres/gpu:1" not in output
     assert "RUNNING  1    64G" in output
+
+
+def test_pending_jobs_are_last_and_node_is_dash(monkeypatch, capsys):
+    node_raw = """NodeName=gpu001 CPUAlloc=2 CPUTot=8 RealMemory=64000 AllocMem=16000 FreeMem=45000 State=MIXED Partitions=gpu
+   Gres=gpu:a100:4(S:0-3)
+   AllocTRES=cpu=2,mem=16000M,gres/gpu=1
+"""
+    job_raw = """200|alice|PD|gpu|pending|(Resources)|1|8|64G|gres/gpu:1|0:00|1:00:00|Resources
+100|alice|R|gpu|running|gpu001|1|8|64G|gres/gpu:1|0:10|1:00:00|gpu001
+"""
+
+    def fake_run(cmd):
+        if cmd[0] == "scontrol":
+            return node_raw
+        return job_raw
+
+    monkeypatch.setattr("slm.cli.run_slurm", fake_run)
+
+    assert main([]) == 0
+    output = capsys.readouterr().out
+    running_idx = output.index("100")
+    pending_idx = output.index("200")
+    assert running_idx < pending_idx
+    assert "PENDING  1    64G  8    -" in output

@@ -13,6 +13,12 @@ Python dependencies.
 
 ## Install
 
+From PyPI:
+
+```bash
+python3 -m pip install slmtop
+```
+
 From this directory:
 
 ```bash
@@ -45,9 +51,9 @@ gpu002  gpu        [#.........] 1/8 12%  112/128   [#.........] 12%  IDLE
 
 ------------------------------------------------------------------------
 
-JOBID  USER   STATE    GPU  MEM   CPU  NODE/REASON  PARTITION  TIME  NAME
------  -----  -------  ---  ----  ---  -----------  ---------  ----  -----
-123    alice  RUNNING  4    128G  32   gpu001       gpu        2:31  train
+JOBID  USER   STATE    GPU  MEM   CPU  NODE    PARTITION  TIME  NAME
+-----  -----  -------  ---  ----  ---  ------  ---------  ----  -----
+123    alice  RUNNING  4    128G  32   gpu001  gpu        2:31  train
 ```
 
 Only show nodes with at least one free GPU in the top section:

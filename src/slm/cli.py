@@ -89,6 +89,20 @@ def job_gpu_count(gpu_request: str) -> str:
     return str(total) if found else gpu_request
 
 
+def job_node_display(nodes: str) -> str:
+    if not nodes or nodes == "-":
+        return "-"
+    if nodes.startswith("(") and nodes.endswith(")"):
+        return "-"
+    if nodes in {"Resources", "Priority", "Dependency", "QOSMaxJobsPerUserLimit"}:
+        return "-"
+    return nodes
+
+
+def sort_jobs(jobs):
+    return sorted(jobs, key=lambda job: (job.state == "PD", job.job_id))
+
+
 def resource_summary(nodes: list[NodeResource]) -> list[str]:
     total_nodes = len(nodes)
     cpu_total = sum(node.cpu_total for node in nodes)
@@ -140,12 +154,12 @@ def job_top_rows(jobs) -> list[list[str]]:
             job_gpu_count(job.gpu_request),
             job.memory,
             str(job.cpus) if job.cpus is not None else "-",
-            job.nodes,
+            job_node_display(job.nodes),
             job.partition,
             job.time_used,
             job.name,
         ]
-        for job in jobs
+        for job in sort_jobs(jobs)
     ]
 
 
@@ -166,7 +180,7 @@ def print_top(nodes: list[NodeResource], jobs, only_free_gpu: bool = False) -> N
     print("-" * 72)
     print()
     print_table(
-        ["JOBID", "USER", "STATE", "GPU", "MEM", "CPU", "NODE/REASON", "PARTITION", "TIME", "NAME"],
+        ["JOBID", "USER", "STATE", "GPU", "MEM", "CPU", "NODE", "PARTITION", "TIME", "NAME"],
         job_top_rows(jobs),
     )
 
