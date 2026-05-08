@@ -38,14 +38,16 @@ The output is split into a compact resource dashboard and a job table:
 ```text
 slmtop  nodes 2  |  gpu free 9/16  |  cpu free 144/256
 
-NODE    GPU_USE               CPU_FREE  CPU_USE           STATE
-------  --------------------  --------  ----------------  -----
-gpu001  [########..] 6/8 75%  32/128    [########..] 75%  MIXED
-gpu002  [#.........] 1/8 12%  112/128   [#.........] 12%  IDLE
+NODE    PARTITION  GPU_USE               CPU_FREE  CPU_USE           STATE
+------  ---------  --------------------  --------  ----------------  -----
+gpu001  gpu        [########..] 6/8 75%  32/128    [########..] 75%  MIXED
+gpu002  gpu        [#.........] 1/8 12%  112/128   [#.........] 12%  IDLE
 
-JOBID  USER   STATE    GPU  MEM   CPU  NODE/REASON  TIME  NAME
------  -----  -------  ---  ----  ---  -----------  ----  -----
-123    alice  RUNNING  4    128G  32   gpu001       2:31  train
+------------------------------------------------------------------------
+
+JOBID  USER   STATE    GPU  MEM   CPU  NODE/REASON  PARTITION  TIME  NAME
+-----  -----  -------  ---  ----  ---  -----------  ---------  ----  -----
+123    alice  RUNNING  4    128G  32   gpu001       gpu        2:31  train
 ```
 
 Only show nodes with at least one free GPU in the top section:

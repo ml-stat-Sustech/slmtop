@@ -72,17 +72,20 @@ def job_gpu_count(gpu_request: str) -> str:
     total = 0
     found = False
     for part in gpu_request.split(","):
-        fields = part.strip().split(":")
-        if not fields:
-            continue
-        if fields[0] == "gpu" and fields[-1].isdigit():
-            total += int(fields[-1])
-            found = True
-        elif fields[0].endswith("/gpu") and "=" in fields[-1]:
-            value = fields[-1].split("=", 1)[1]
-            if value.isdigit():
+        item = part.strip().split("(", 1)[0]
+        if "=" in item:
+            key, value = item.split("=", 1)
+            if (key == "gres/gpu" or key.startswith("gres/gpu:")) and value.isdigit():
                 total += int(value)
                 found = True
+            continue
+
+        fields = item.split(":")
+        if not fields:
+            continue
+        if fields[0] in {"gpu", "gres/gpu"} and fields[-1].isdigit():
+            total += int(fields[-1])
+            found = True
     return str(total) if found else gpu_request
 
 
@@ -118,6 +121,7 @@ def node_top_rows(nodes: list[NodeResource], only_free_gpu: bool = False) -> lis
         rows.append(
             [
                 node.name,
+                node.partition,
                 gpu_summary(node),
                 f"{node.cpu_free}/{node.cpu_total}",
                 f"{usage_bar(node.cpu_allocated, node.cpu_total)} {pct(node.cpu_allocated, node.cpu_total).strip()}",
@@ -137,6 +141,7 @@ def job_top_rows(jobs) -> list[list[str]]:
             job.memory,
             str(job.cpus) if job.cpus is not None else "-",
             job.nodes,
+            job.partition,
             job.time_used,
             job.name,
         ]
@@ -154,12 +159,14 @@ def print_top(nodes: list[NodeResource], jobs, only_free_gpu: bool = False) -> N
     print("slmtop  " + "  |  ".join(resource_summary(visible_nodes)))
     print()
     print_table(
-        ["NODE", "GPU_USE", "CPU_FREE", "CPU_USE", "STATE"],
+        ["NODE", "PARTITION", "GPU_USE", "CPU_FREE", "CPU_USE", "STATE"],
         node_top_rows(visible_nodes),
     )
     print()
+    print("-" * 72)
+    print()
     print_table(
-        ["JOBID", "USER", "STATE", "GPU", "MEM", "CPU", "NODE/REASON", "TIME", "NAME"],
+        ["JOBID", "USER", "STATE", "GPU", "MEM", "CPU", "NODE/REASON", "PARTITION", "TIME", "NAME"],
         job_top_rows(jobs),
     )
 
