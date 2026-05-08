@@ -33,6 +33,18 @@ NodeName=gpu003 Arch=x86_64 CoresPerSocket=64
     assert "typed allocation unavailable" in nodes[2].gpus[0].note
 
 
+def test_parse_node_memory_allocation_from_alloc_tres_when_alloc_mem_is_zero():
+    raw = """NodeName=gpu001 Arch=x86_64 CoresPerSocket=64
+   CPUAlloc=32 CPUTot=128 RealMemory=512000 AllocMem=0 FreeMem=350000 State=MIXED Partitions=gpu
+   Gres=gpu:a100:8(S:0-7)
+   AllocTRES=cpu=32,mem=128G,gres/gpu=2
+"""
+    nodes = parse_nodes(raw)
+
+    assert nodes[0].mem_allocated_mb == 131072
+    assert nodes[0].mem_unallocated_mb == 380928
+
+
 def test_parse_squeue_resources():
     raw = "123|alice|R|gpu|train|gpu001|1|8|64G|gpu:a100:1|00:10:00|1-00:00:00|gpu001\n"
     jobs = parse_squeue(raw)

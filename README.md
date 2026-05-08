@@ -33,6 +33,23 @@ Show node resources above current job requests:
 slmtop
 ```
 
+The output is split into a compact resource dashboard and a job table:
+
+```text
+slmtop  nodes 2  |  gpu free 9/16  |  cpu free 144/256  |  mem free 552G/1000G
+
+NODE RESOURCES
+NODE    GPU_FREE/TOTAL  CPU_FREE  CPU_USE       CPU%  MEM_FREE   MEM_USE       MEM%  STATE
+------  --------------  --------  ------------  ----  ---------  ------------  ----  -----
+gpu001  a100:2/8        32/128    [########..]   75%  116G/500G  [########..]   77%  MIXED
+gpu002  h100:7/8        112/128   [#.........]   12%  436G/500G  [#.........]   13%  IDLE
+
+JOBS
+JOBID  USER   ST  GPU         MEM   CPU  NODE/REASON  TIME  NAME
+-----  -----  --  ----------  ----  ---  -----------  ----  -----
+123    alice  R   gpu:a100:4  128G  32   gpu001       2:31  train
+```
+
 Only show nodes with at least one free GPU in the top section:
 
 ```bash

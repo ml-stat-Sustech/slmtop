@@ -117,11 +117,27 @@ def parse_alloc_tres(alloc_tres: str) -> tuple[dict[str, int], int | None]:
     return typed, untyped_total
 
 
+def parse_alloc_tres_memory_mb(alloc_tres: str) -> int:
+    if not alloc_tres or alloc_tres == "(null)":
+        return 0
+
+    for item in split_csv_outside_parens(alloc_tres):
+        if "=" not in item:
+            continue
+        key, value = item.split("=", 1)
+        if key == "mem":
+            return parse_memory_to_mb(value)
+    return 0
+
+
 def parse_nodes(raw: str) -> list[NodeResource]:
     nodes: list[NodeResource] = []
     for record in parse_key_value_records(raw, "NodeName"):
         totals = parse_gpu_gres(record.get("Gres", ""))
         typed_alloc, untyped_alloc = parse_alloc_tres(record.get("AllocTRES", ""))
+        mem_allocated_mb = parse_int(record.get("AllocMem"))
+        if mem_allocated_mb == 0:
+            mem_allocated_mb = parse_alloc_tres_memory_mb(record.get("AllocTRES", ""))
         gpus: list[GpuResource] = []
 
         for gpu_type, total in sorted(totals.items()):
@@ -152,7 +168,7 @@ def parse_nodes(raw: str) -> list[NodeResource]:
                 cpu_total=parse_int(record.get("CPUTot")),
                 cpu_allocated=parse_int(record.get("CPUAlloc")),
                 mem_total_mb=parse_int(record.get("RealMemory")),
-                mem_allocated_mb=parse_int(record.get("AllocMem")),
+                mem_allocated_mb=mem_allocated_mb,
                 mem_free_mb=parse_int(record.get("FreeMem")) if "FreeMem" in record else None,
                 gpus=tuple(gpus),
             )
