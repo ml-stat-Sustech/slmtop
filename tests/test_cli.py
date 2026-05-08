@@ -17,10 +17,14 @@ def test_default_cli_shows_nodes_and_jobs(monkeypatch, capsys):
 
     assert main([]) == 0
     output = capsys.readouterr().out
-    assert "NODE RESOURCES" in output
-    assert "JOBS" in output
-    assert "a100:3/4" in output
-    assert "gpu:a100:1" in output
+    assert "NODE RESOURCES" not in output
+    assert "JOBS" not in output
+    assert "JOBID" in output
+    assert "1/4 25%" in output
+    assert "RUNNING" in output
+    assert "STATE" in output
+    assert "gpu:a100:1" not in output
+    assert "a100:" not in output
 
 
 def test_free_cli_filters_nodes(monkeypatch, capsys):
@@ -42,6 +46,6 @@ NodeName=gpu002 CPUAlloc=2 CPUTot=8 RealMemory=64000 AllocMem=16000 FreeMem=4500
 
     assert main(["--free"]) == 0
     output = capsys.readouterr().out
-    nodes_section = output.split("JOBS", 1)[0]
+    nodes_section = output.split("JOBID", 1)[0]
     assert "gpu001" not in nodes_section
     assert "gpu002" in nodes_section

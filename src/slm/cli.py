@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from .formatting import format_mb, print_table
+from .formatting import print_table
 from .models import NodeResource
 from .parsers import parse_nodes, parse_squeue
 from .slurm import SlurmError, run_slurm
@@ -36,19 +36,60 @@ def pct(used: int, total: int) -> str:
     return f"{round((used / total) * 100):>3}%"
 
 
+STATE_LABELS = {
+    "R": "RUNNING",
+    "PD": "PENDING",
+    "CG": "COMPLETING",
+    "CD": "COMPLETED",
+    "F": "FAILED",
+    "TO": "TIMEOUT",
+    "CA": "CANCELLED",
+    "NF": "NODE_FAIL",
+    "OOM": "OUT_OF_MEMORY",
+    "S": "SUSPENDED",
+}
+
+
+def state_label(state: str) -> str:
+    return STATE_LABELS.get(state, state)
+
+
 def gpu_summary(node: NodeResource) -> str:
-    return ",".join(
-        f"{gpu.gpu_type}:{gpu.free if gpu.free is not None else '?'}/{gpu.total}"
-        for gpu in node.gpus
-    ) or "-"
+    total = sum(gpu.total for gpu in node.gpus)
+    if total == 0:
+        return "-"
+    if any(gpu.free is None for gpu in node.gpus):
+        return f"?/{total}"
+    free = sum(gpu.free or 0 for gpu in node.gpus)
+    used = max(total - free, 0)
+    return f"{usage_bar(used, total)} {used}/{total} {pct(used, total).strip()}"
+
+
+def job_gpu_count(gpu_request: str) -> str:
+    if not gpu_request or gpu_request == "-":
+        return "-"
+
+    total = 0
+    found = False
+    for part in gpu_request.split(","):
+        fields = part.strip().split(":")
+        if not fields:
+            continue
+        if fields[0] == "gpu" and fields[-1].isdigit():
+            total += int(fields[-1])
+            found = True
+        elif fields[0].endswith("/gpu") and "=" in fields[-1]:
+            value = fields[-1].split("=", 1)[1]
+            if value.isdigit():
+                total += int(value)
+                found = True
+    return str(total) if found else gpu_request
 
 
 def resource_summary(nodes: list[NodeResource]) -> list[str]:
     total_nodes = len(nodes)
     cpu_total = sum(node.cpu_total for node in nodes)
     cpu_used = sum(node.cpu_allocated for node in nodes)
-    mem_total = sum(node.mem_total_mb for node in nodes)
-    mem_used = sum(node.mem_allocated_mb for node in nodes)
     gpu_total = 0
     gpu_free = 0
     unknown_gpu_free = False
@@ -66,7 +107,6 @@ def resource_summary(nodes: list[NodeResource]) -> list[str]:
         f"nodes {total_nodes}",
         f"gpu free {gpu_value}",
         f"cpu free {max(cpu_total - cpu_used, 0)}/{cpu_total}",
-        f"mem free {format_mb(max(mem_total - mem_used, 0))}/{format_mb(mem_total)}",
     ]
 
 
@@ -80,12 +120,8 @@ def node_top_rows(nodes: list[NodeResource], only_free_gpu: bool = False) -> lis
                 node.name,
                 gpu_summary(node),
                 f"{node.cpu_free}/{node.cpu_total}",
-                usage_bar(node.cpu_allocated, node.cpu_total),
-                pct(node.cpu_allocated, node.cpu_total),
-                f"{format_mb(node.mem_unallocated_mb)}/{format_mb(node.mem_total_mb)}",
-                usage_bar(node.mem_allocated_mb, node.mem_total_mb),
-                pct(node.mem_allocated_mb, node.mem_total_mb),
-                node.state,
+                f"{usage_bar(node.cpu_allocated, node.cpu_total)} {pct(node.cpu_allocated, node.cpu_total).strip()}",
+                state_label(node.state),
             ]
         )
     return rows
@@ -96,8 +132,8 @@ def job_top_rows(jobs) -> list[list[str]]:
         [
             job.job_id,
             job.user,
-            job.state,
-            job.gpu_request,
+            state_label(job.state),
+            job_gpu_count(job.gpu_request),
             job.memory,
             str(job.cpus) if job.cpus is not None else "-",
             job.nodes,
@@ -117,15 +153,13 @@ def print_top(nodes: list[NodeResource], jobs, only_free_gpu: bool = False) -> N
 
     print("slmtop  " + "  |  ".join(resource_summary(visible_nodes)))
     print()
-    print("NODE RESOURCES")
     print_table(
-        ["NODE", "GPU_FREE/TOTAL", "CPU_FREE", "CPU_USE", "CPU%", "MEM_FREE", "MEM_USE", "MEM%", "STATE"],
+        ["NODE", "GPU_USE", "CPU_FREE", "CPU_USE", "STATE"],
         node_top_rows(visible_nodes),
     )
     print()
-    print("JOBS")
     print_table(
-        ["JOBID", "USER", "ST", "GPU", "MEM", "CPU", "NODE/REASON", "TIME", "NAME"],
+        ["JOBID", "USER", "STATE", "GPU", "MEM", "CPU", "NODE/REASON", "TIME", "NAME"],
         job_top_rows(jobs),
     )
 
